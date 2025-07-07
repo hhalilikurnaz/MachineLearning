@@ -1,6 +1,6 @@
 🧠 Makine Öğrenmesi Algoritmaları
 Bu depo, çeşitli Gözetimli ve Gözetimsiz Öğrenme algoritmalarını uygulamalı olarak içeren bir Python projeler koleksiyonudur. Her algoritma için ayrı dosyalar ve örnek veri kümeleri ile açıklamalı kodlar yer almaktadır.
-
+```
 KLASOR YAPISI
 .
 ├── Gözetimli Öğrenme
@@ -21,7 +21,7 @@ KLASOR YAPISI
 │       └── svm.py
 ├── Gözetimsiz Öğrenme
 └── README.md
-
+```
  Kullanılan Kütüphaneler
 pandas
 
