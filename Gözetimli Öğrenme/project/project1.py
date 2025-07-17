@@ -8,6 +8,8 @@
 
 #####------------Aşamalarımız bunlar---------------
 
+
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -38,7 +40,7 @@ print(df.info())
 #Univariate variable analysis => her bir değişkenin tek başına incelenmesi demek
 
 #==>> Kategorik veriler için barplot çizdiriyorum
-''' 1111111111111111111
+
 
 def bar_plot(variable):
 
@@ -73,10 +75,10 @@ category2=["Cabin","Name","Ticket"]
 for c in category2:
       print("{} \n".format(df[c].value_counts()))
 
-11111111111111111111111111'''
+
 #Numerical Variable ,
 #the best way for analysis of numerical value is hsytogram
-'''11111111111111111111111111111
+
 def plot_hist(variable):
       plt.figure(figsize=(9,3))
       plt.hist(df[variable],bins=50)
@@ -88,7 +90,7 @@ def plot_hist(variable):
 numeriVar=["Fare","Age"]
 for n in numeriVar:
       plot_hist(n)
-       111111111111111'''
+     
 
 
 #Basic Data Analysis
@@ -282,21 +284,133 @@ df=pd.get_dummies(df,columns=['Embarked'])
 tickets=[]
 for i in list(df.Ticket):
     if not i.isdigit():
-        tickets.append(i.replace(".","").replalace("/","").strip().split(" ")[0])
+        tickets.append(i.replace(".","").replace("/","").strip().split(" ")[0])
     else:
         tickets.append("x")
 df['Ticket']=tickets
 
 
-df=pd.get_dummies(df,columns='Ticket',prefix="T")
+df=pd.get_dummies(df,columns=['Ticket'],prefix="T")
 #başına T ekledik karışmasın 
 
 
-df=pd.get_dummies(df,columns='Pclass')
-df=pd.get_dummies(df,columns="Sex")
+df=pd.get_dummies(df,columns=['Pclass'])
+df=pd.get_dummies(df,columns=["Sex"])
 
 
-#PassangerId ile Cabin gereksiz 
-df.drop(labels=['PasangerId','Cabin'],axis=1,inplace=True)
 
+
+
+#----Modelling
+from sklearn.model_selection import train_test_split,StratifiedGroupKFold,GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier,VotingClassifier 
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+
+
+train=df.copy()
+
+
+
+X_train=df.drop(labels="Survived",axis=1)
+y_train=train['Survived']
+
+
+
+X_train,X_test,y_train,y_test=train_test_split(X_train,y_train,test_size=0.33,random_state=42)
+print("X_train",len(X_train))
+print("X_test",len(X_test))
+print("y_train",len(y_train))
+print("y_test",len(y_test))
+
+#logistic reg
+
+logreg=LogisticRegression()
+logreg.fit(X_train,y_train)
+acc_log_train=round(logreg.score(X_train,y_train)*100,2)
+acc_log_test=round(logreg.score(X_test,y_test)*100,2)
+print("Testing accuracy : %{}".format(acc_log_test))
+print("Training accuracy : %{}".format(acc_log_train))
+#aynı anda hem test hem train accuracy bakammızdaki sebep trainig yüksek test düşükse overfitting demek ya da tam tersiyse öğrenememe demektir 
+
+
+#Hyperparametre Tuning--Grid Search
+
+random_state=42
+classifier=[DecisionTreeClassifier(random_state=random_state),SVC(random_state=random_state),LogisticRegression(random_state=random_state),KNeighborsClassifier(random_state=random_state)]
+
+dt_param_grid={"min_samples_split":range(100,500,2),
+               "max_depth": range(1,20,2)}
+
+svc_param_grid={"kernel":["rbf"],
+                "gamma": [0.001,0.01,0.1,1],
+                "C":[1,10,50,100,200,300,1000]}
+
+rf_param_grid={"max_features":[1,3,10],
+               "min_samples_split":[2,3,10],
+               "min_samples_leaf":[1,3,10],
+               "boostrap":[False],
+               "n_estimators":[100,300],
+               "criterion":["gini"]
+               
+               }
+logreg_param_grid={"C":np.logspace(-3,3,7),
+                   "penalty":["l1","l2"]
+
+}
+
+knn_param_grid={"n_neighbors":np.linspace(1,19,10,dtype=int).tolist(),
+                "weighs":["uniform","distance"],
+                "metric":["euclidean","manhattan"]}
+
+classifer_param=[dt_param_grid,
+                 svc_param_grid,
+                 rf_param_grid,
+                 logreg_param_grid,
+                 knn_param_grid]
+
+cv_result=[]
+best_estimators=[]
+for i in range(len(classifier)):
+    clf=GridSearchCV(classifier[i],param_grid=classifer_param[i],cv=StratifiedGroupKFold(n_splits=10),scoring="accuracy",n_jobs=-1,verbose=1)
+    #GridSeacrhCV ml'de best hyperparameters
+    #K-fold cross-validation uygulanacak ama biraz farklı:
+    '''
+    K-fold cross-validation uygulanacak ama biraz farklı:
+
+    Stratified: Her katmanda sınıf dağılımı aynı kalıyor.
+
+    Group: Aynı gruba ait veriler aynı katmanda kalıyor (örneğin aynı kişiye ait örnekler).
+
+    n_splits=10: 10 parçalı çapraz doğrulama yapılacak.
+
+    Bu, veri setindeki gruplar arası sızıntıyı önlemek için şahane bir yöntem.
+
+
+    '''
+    #n_jobs=-1 =tüm işlemci çekirdeklerini kullan .Paralel çalışır ,hızlandırır
+    #verbose=1 --> işlem sırasında naptıgını konsola yazdırır 1- orta seviye detay 2-çok detay 3- sessiz mod
+    clf.fit(X_train,y_train)
+    cv_result.append(clf.best_score_)
+    best_estimators.append(clf.best_estimator_)
+    print(cv_result[i])
+
+
+cv_results=pd.DataFrame({"Cross Validation Accuracy Means":cv_result,"ML Models":["DecisionTreeClassifier","SVC","LogisticRegression","KNeighborsClassifier","KNeighborsClassifier"]})
+print(cv_result)
+
+y=sns.barplot(cv_result,x="ML Models",y="Cross Validation Accuracy Means")
+plt.show()
+
+#Ensemble Modeling
+#VotingClassifer=tahmincileri bir araya getirip “çoğunluk ne derse o olur” mantığıyla çalışan bir ensemble (topluluk) modeli.
+votingC=VotingClassifier(estimators=[("dt",best_estimators[0]),
+                                    ( "rfd",best_estimators[2]),
+                                     ("lr",best_estimators[3])],
+                                     voting="soft",n_jobs=-1)
+votingC=votingC.fit(X_train,y_train)
+print(accuracy_score(votingC.predict(X_test),y_test))
 
