@@ -83,4 +83,3 @@ for i in range(episodes):
 print("Result after {} episodes".format(episodes))
 print("Avarage timestep per a episodes :",total_epoch/episodes)
 print("Avarage penalties per episodes :",total_penalties/episodes)
-
